@@ -22,22 +22,28 @@ gcreate() {
 
 gdelete() {
   local usage="Usage: gdelete [INSTANCE_NAME_PREFIX]"
-  instance_name_prefix=$GPREFIX$1
+  local instance_name_prefix=$GPREFIX$1
   if [ -z "$(gcloud compute instances list | awk '{if(NR>1)print}' | grep RUNNING | grep "^$instance_name_prefix")" ]; then echo "no instances match pattern \"^$instance_name_prefix\""; echo $usage return 1; fi
-  gcloud compute instances delete $(gcloud compute instances list | awk '{if(NR>1)print}' | grep RUNNING | grep "^$instance_name_prefix" | awk '{print $1}' | xargs echo)
+  gcloud compute instances delete --delete-disks=all $(gcloud compute instances list | awk '{if(NR>1)print}' | grep RUNNING | grep "^$instance_name_prefix" | awk '{print $1}' | xargs echo)
 }
 
 gonline() {
   local usage="Usage: gonline [INSTANCE_NAMES]"
   if [ "$#" -lt 1 ]; then echo $usage; return 1; fi
-  (set -x; gcloud compute instances add-access-config $1 --access-config-name="external-nat")
+  local instance
+  for instance in "$@"; do
+    (set -x; gcloud compute instances add-access-config $instance --access-config-name="external-nat")
+  done
 }
 
 gairgap() {
   local usage="Usage: gairgap [INSTANCE_NAMES]"
   if [ "$#" -lt 1 ]; then echo $usage; return 1; fi
-  local access_config_name="$(gcloud compute instances describe $1 --format="value(networkInterfaces[0].accessConfigs[0].name)")"
-  (set -x; gcloud compute instances delete-access-config $1 --access-config-name="$access_config_name")
+  local instance
+  for instance in "$@"; do
+    local access_config_name="$(gcloud compute instances describe $instance --format="value(networkInterfaces[0].accessConfigs[0].name)")"
+    (set -x; gcloud compute instances delete-access-config $instance --access-config-name="$access_config_name")
+  done
 }
 
 gssh() {
