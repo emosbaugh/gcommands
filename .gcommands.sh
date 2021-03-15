@@ -32,7 +32,8 @@ gonline() {
   if [ "$#" -lt 1 ]; then echo $usage; return 1; fi
   local instance
   for instance in "$@"; do
-    (set -x; gcloud compute instances add-access-config $instance --access-config-name="external-nat")
+    local instance_name_prefix=$GPREFIX$instance
+    (set -x; gcloud compute instances add-access-config $instance_name_prefix --access-config-name="external-nat")
   done
 }
 
@@ -41,8 +42,9 @@ gairgap() {
   if [ "$#" -lt 1 ]; then echo $usage; return 1; fi
   local instance
   for instance in "$@"; do
+    local instance_name_prefix=$GPREFIX$instance
     local access_config_name="$(gcloud compute instances describe $instance --format="value(networkInterfaces[0].accessConfigs[0].name)")"
-    (set -x; gcloud compute instances delete-access-config $instance --access-config-name="$access_config_name")
+    (set -x; gcloud compute instances delete-access-config $instance_name_prefix --access-config-name="$access_config_name")
   done
 }
 
