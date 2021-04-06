@@ -83,7 +83,7 @@ gdisk() {
 }
 
 gattach() {
-  local usage="Usage: gcreate [INSTANCE_NAME] [DISK_NAME]"
+  local usage="Usage: gattach [INSTANCE_NAME] [DISK_NAME]"
   if [ "$#" -ne 2 ]; then echo "${usage}"; return 1; fi
   local instance_name_prefix=${GPREFIX}$1
   local disk_name_prefix=${GPREFIX}disk-$2
