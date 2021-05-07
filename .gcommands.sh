@@ -22,7 +22,7 @@ gcreate() {
   default_service_account="$(gcloud iam service-accounts list | grep '\-compute@developer.gserviceaccount.com' | awk 'BEGIN {FS="  "}; {print $2}')"
   shift
   (set -x; gcloud beta compute --project=replicated-qa instances create $(echo $@ | sed "s/[^ ]* */${GPREFIX}&/g") \
-    --zone=us-west1-b --machine-type=n1-standard-4 \
+    "--zone=${ZONE:-us-central1-a}" --machine-type=n1-standard-4 \
     --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE \
     --service-account="${default_service_account}" \
     --scopes=https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/service.management.readonly,https://www.googleapis.com/auth/trace.append \

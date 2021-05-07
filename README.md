@@ -8,6 +8,6 @@ Add the following to your `.profile`:
 
 ```
 export GPREFIX=ethan-
-export GZONE=us-west1-b
+export GZONE=us-central1-a
 source $HOME/.gcommands.sh
 ```
