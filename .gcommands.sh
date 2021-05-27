@@ -33,7 +33,7 @@ gcreate() {
 
 gdelete() {
   local usage="Usage: gdelete [INSTANCE_NAME_PREFIX]"
-  local instance_name_prefix=$GPREFIX$1
+  local instance_name_prefix="${GPREFIX}$1"
   if ! gcloud compute instances list | awk '{if(NR>1)print}' | grep RUNNING | grep -q "^$instance_name_prefix" ; then echo "no instances match pattern \"^$instance_name_prefix\""; echo "${usage}" return 1; fi
   gcloud compute instances delete --delete-disks=all $(gcloud compute instances list | awk '{if(NR>1)print}' | grep RUNNING | grep "^$instance_name_prefix" | awk '{print $1}' | xargs echo)
 }
@@ -85,8 +85,16 @@ gdisk() {
 gattach() {
   local usage="Usage: gattach [INSTANCE_NAME] [DISK_NAME]"
   if [ "$#" -ne 2 ]; then echo "${usage}"; return 1; fi
-  local instance_name_prefix=${GPREFIX}$1
-  local disk_name_prefix=${GPREFIX}disk-$2
-  local device_name_prefix=${GPREFIX}$1-disk-$2
+  local instance_name_prefix="${GPREFIX}$1"
+  local disk_name_prefix="${GPREFIX}disk-$2"
+  local device_name_prefix="${GPREFIX}$1-disk-$2"
   (set -x; gcloud compute instances attach-disk "${instance_name_prefix}" --disk="${disk_name_prefix}" --device-name="${device_name_prefix}")
+}
+
+gtag() {
+  local usage="Usage: gattach [INSTANCE_NAME] [comma-delimited list of TAGS]"
+  if [ "$#" -ne 2 ]; then echo "${usage}"; return 1; fi
+  local instance_name_prefix="${GPREFIX}$1"
+  local tags="$2"
+  (set -x; gcloud compute instances add-tags "${instance_name_prefix}" --tags="${tags}" --zone="${GZONE}")
 }
