@@ -21,7 +21,7 @@ gcreate() {
   local default_service_account
   default_service_account="$(gcloud iam service-accounts list | grep '\-compute@developer.gserviceaccount.com' | awk 'BEGIN {FS="  "}; {print $2}')"
   shift
-  (set -x; gcloud beta compute --project=replicated-qa instances create $(echo $@ | sed "s/[^ ]* */${GPREFIX}&/g") \
+  (set -x; gcloud compute --project=replicated-qa instances create $(echo $@ | sed "s/[^ ]* */${GPREFIX}&/g") \
     "--zone=${ZONE:-us-central1-a}" --machine-type=n1-standard-4 \
     --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE \
     --service-account="${default_service_account}" \
@@ -78,7 +78,7 @@ gssh() {
 gdisk() {
   local usage="Usage: gdisk [DISK_NAMES]"
   if [ "$#" -lt 1 ]; then echo "${usage}"; return 1; fi
-  (set -x; gcloud beta compute disks create $(echo $@ | sed "s/[^ ]* */${GPREFIX}disk-&/g") \
+  (set -x; gcloud compute disks create $(echo $@ | sed "s/[^ ]* */${GPREFIX}disk-&/g") \
     --type=pd-balanced --size=100GB --zone="${GZONE}")
 }
 
