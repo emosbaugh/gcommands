@@ -1,13 +1,16 @@
 #!/bin/bash
 
-# GPREFIX=
-# GZONE=
+genv() {
+  echo "Configuration: $(cat ~/.config/gcloud/active_config)"
+}
 
 glist() {
-  gcloud compute instances list | grep "^${GPREFIX}"
+  genv
+  gcloud compute instances list --filter="labels.owner:$GUSER"
 }
 
 gcreate() {
+  genv
   local usage="Usage: gcreate [IMAGE] [INSTANCE_NAMES]"
   if [ "$#" -lt 2 ]; then echo "${usage}"; return 1; fi
   local image
@@ -21,8 +24,9 @@ gcreate() {
   local default_service_account
   default_service_account="$(gcloud iam service-accounts list | grep '\-compute@developer.gserviceaccount.com' | awk 'BEGIN {FS="  "}; {print $2}')"
   shift
-  (set -x; gcloud compute --project=replicated-qa instances create $(echo $@ | sed "s/[^ ]* */${GPREFIX}&/g") \
-    "--zone=${ZONE:-us-central1-a}" --machine-type=n1-standard-4 \
+  (set -x; gcloud compute instances create $(echo $@) \
+    --labels owner=$GUSER \
+    --machine-type=n1-standard-4 \
     --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE \
     --service-account="${default_service_account}" \
     --scopes=https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/service.management.readonly,https://www.googleapis.com/auth/trace.append \
@@ -32,13 +36,17 @@ gcreate() {
 }
 
 gdelete() {
+  genv
   local usage="Usage: gdelete [INSTANCE_NAME_PREFIX]"
-  local instance_name_prefix="${GPREFIX}$1"
-  if ! gcloud compute instances list | awk '{if(NR>1)print}' | grep RUNNING | grep -q "^$instance_name_prefix" ; then echo "no instances match pattern \"^$instance_name_prefix\""; echo "${usage}" return 1; fi
-  gcloud compute instances delete --delete-disks=all $(gcloud compute instances list | awk '{if(NR>1)print}' | grep RUNNING | grep "^$instance_name_prefix" | awk '{print $1}' | xargs echo)
+  local instance_name_prefix="$1"
+  if [ -z "$instance_name_prefix" ]; then echo "Must provide prefix"; echo "${usage}"; return; fi
+  if ! gcloud compute instances list --filter="labels.owner:$GUSER" | awk '{if(NR>1)print}' | grep -q "^$instance_name_prefix"; then echo "no instances match pattern \"^$instance_name_prefix\""; echo "${usage}" return 1; fi
+  gcloud compute instances delete --delete-disks=all $(gcloud compute instances list --filter="labels.owner:$GUSER" | awk '{if(NR>1)print}' | grep "^$instance_name_prefix" | awk '{print $1}' | xargs echo)
 }
 
+# TOOD: Udate for owner labels
 gonline() {
+  genv
   local usage="Usage: gonline [INSTANCE_NAMES]"
   if [ "$#" -lt 1 ]; then echo "${usage}"; return 1; fi
   local instance
@@ -48,7 +56,9 @@ gonline() {
   done
 }
 
+# TOOD: Udate for owner labels
 gairgap() {
+  genv
   local usage="Usage: gairgap [INSTANCE_NAMES]"
   if [ "$#" -lt 1 ]; then echo "${usage}"; return 1; fi
   local instance
@@ -60,7 +70,9 @@ gairgap() {
   done
 }
 
+# TOOD: Udate for owner labels
 gssh() {
+  genv
   local usage="Usage: gssh [INSTANCE_NAME]"
   if [ "$#" -ne 1 ]; then echo "${usage}"; return 1; fi
   while true; do
@@ -75,14 +87,18 @@ gssh() {
   done
 }
 
+# TOOD: Udate for owner labels
 gdisk() {
+  genv
   local usage="Usage: gdisk [DISK_NAMES]"
   if [ "$#" -lt 1 ]; then echo "${usage}"; return 1; fi
   (set -x; gcloud compute disks create $(echo $@ | sed "s/[^ ]* */${GPREFIX}disk-&/g") \
-    --type=pd-balanced --size=100GB --zone="${GZONE}")
+    --type=pd-balanced --size=100GB)
 }
 
+# TOOD: Udate for owner labels
 gattach() {
+  genv
   local usage="Usage: gattach [INSTANCE_NAME] [DISK_NAME]"
   if [ "$#" -ne 2 ]; then echo "${usage}"; return 1; fi
   local instance_name_prefix="${GPREFIX}$1"
@@ -91,10 +107,12 @@ gattach() {
   (set -x; gcloud compute instances attach-disk "${instance_name_prefix}" --disk="${disk_name_prefix}" --device-name="${device_name_prefix}")
 }
 
+# TOOD: Udate for owner labels
 gtag() {
+  genv
   local usage="Usage: gattach [INSTANCE_NAME] [comma-delimited list of TAGS]"
   if [ "$#" -ne 2 ]; then echo "${usage}"; return 1; fi
   local instance_name_prefix="${GPREFIX}$1"
   local tags="$2"
-  (set -x; gcloud compute instances add-tags "${instance_name_prefix}" --tags="${tags}" --zone="${GZONE}")
+  (set -x; gcloud compute instances add-tags "${instance_name_prefix}" --tags="${tags}"")
 }
