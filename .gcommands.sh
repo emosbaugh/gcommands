@@ -20,7 +20,7 @@ gcreate() {
   local default_service_account
   default_service_account="$(gcloud iam service-accounts list | grep '\-compute@developer.gserviceaccount.com' | awk 'BEGIN {FS="  "}; {print $2}')"
   shift
-  (set -x; gcloud compute instances create $(echo $@) \
+  (set -x; gcloud compute instances create $(echo $@ | sed "s/[^ ]* */${GUSER}-&/g") \
     --labels owner="${GUSER}" \
     --machine-type=n1-standard-4 \
     --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE \
@@ -33,9 +33,12 @@ gcreate() {
 
 gdelete() {
   local usage="Usage: gdelete [INSTANCE_NAMES]"
-  local instance_name="$1"
-  if ! gcloud compute instances list --filter="labels.owner:${GUSER}" | awk '{if(NR>1)print}' | grep RUNNING | grep -q "^$instance_name" ; then echo "no instances match pattern \"^$instance_name\""; echo "${usage}" return 1; fi
-  gcloud compute instances delete --delete-disks=all $(gcloud compute instances list --filter="labels.owner:${GUSER}" | awk '{if(NR>1)print}' | grep RUNNING | grep "^$instance_name" | awk '{print $1}' | xargs echo)
+  local instance_name_prefix=""
+  if [ -n "$1" ]; then
+    instance_name_prefix="${GUSER}-$1"
+  fi
+  if ! gcloud compute instances list --filter="labels.owner:${GUSER}" | awk '{if(NR>1)print}' | grep RUNNING | grep -q "^${instance_name_prefix}" ; then echo "no instances match pattern \"^${instance_name_prefix}\""; echo "${usage}" return 1; fi
+  gcloud compute instances delete --delete-disks=all $(gcloud compute instances list --filter="labels.owner:${GUSER}" | awk '{if(NR>1)print}' | grep RUNNING | grep "^${instance_name_prefix}" | awk '{print $1}' | xargs echo)
 }
 
 gonline() {
@@ -43,8 +46,8 @@ gonline() {
   if [ "$#" -lt 1 ]; then echo "${usage}"; return 1; fi
   local instance
   for instance in "$@"; do
-    local instance_name="${instance}"
-    (set -x; gcloud compute instances add-access-config "${instance_name}" --access-config-name="external-nat")
+    local instance_name_prefix="${GUSER}-${instance}"
+    (set -x; gcloud compute instances add-access-config "${instance_name_prefix}" --access-config-name="external-nat")
   done
 }
 
@@ -53,19 +56,20 @@ gairgap() {
   if [ "$#" -lt 1 ]; then echo "${usage}"; return 1; fi
   local instance
   for instance in "$@"; do
-    local instance_name="${instance}"
+    local instance_name_prefix="${GUSER}-${instance}"
     local access_config_name
-    access_config_name="$(gcloud compute instances describe "${instance_name}" --format="value(networkInterfaces[0].accessConfigs[0].name)")"
-    (set -x; gcloud compute instances delete-access-config "${instance_name}" --access-config-name="${access_config_name}")
+    access_config_name="$(gcloud compute instances describe "${instance_name_prefix}" --format="value(networkInterfaces[0].accessConfigs[0].name)")"
+    (set -x; gcloud compute instances delete-access-config "${instance_name_prefix}" --access-config-name="${access_config_name}")
   done
 }
 
 gssh() {
   local usage="Usage: gssh [INSTANCE_NAME]"
   if [ "$#" -ne 1 ]; then echo "${usage}"; return 1; fi
+  local instance_name_prefix="${GUSER}-$1"
   while true; do
     start_time="$(date -u +%s)"
-    gcloud compute ssh --tunnel-through-iap $1
+    gcloud compute ssh --tunnel-through-iap "${instance_name_prefix}"
     end_time="$(date -u +%s)"
     elapsed="$(bc <<<"$end_time-$start_time")"
     if [ "${elapsed}" -gt "60" ]; then # there must be a better way to do this
@@ -78,7 +82,7 @@ gssh() {
 gdisk() {
   local usage="Usage: gdisk [DISK_NAMES]"
   if [ "$#" -lt 1 ]; then echo "${usage}"; return 1; fi
-  (set -x; gcloud compute disks create $(echo $@ | sed "s/[^ ]* */disk-&/g") \
+  (set -x; gcloud compute disks create $(echo $@ | sed "s/[^ ]* */${GUSER}-disk-&/g") \
     --labels owner="${GUSER}" \
     --type=pd-balanced --size=100GB)
 }
@@ -86,16 +90,16 @@ gdisk() {
 gattach() {
   local usage="Usage: gattach [INSTANCE_NAME] [DISK_NAME]"
   if [ "$#" -ne 2 ]; then echo "${usage}"; return 1; fi
-  local instance_name="$1"
-  local disk_name="disk-$2"
-  local device_name="$1-disk-$2"
-  (set -x; gcloud compute instances attach-disk "${instance_name}" --disk="${disk_name}" --device-name="${device_name}")
+  local instance_name_prefix="${GUSER}-$1"
+  local disk_name_prefix="${GUSER}-disk-$2"
+  local device_name_prefix="${GUSER}-$1-disk-$2"
+  (set -x; gcloud compute instances attach-disk "${instance_name_prefix}" --disk="${disk_name_prefix}" --device-name="${device_name_prefix}")
 }
 
 gtag() {
   local usage="Usage: gattach [INSTANCE_NAME] [comma-delimited list of TAGS]"
   if [ "$#" -ne 2 ]; then echo "${usage}"; return 1; fi
-  local instance_name="$1"
+  local instance_name_prefix="${GUSER}-$1"
   local tags="$2"
-  (set -x; gcloud compute instances add-tags "${instance_name}" --tags="${tags}")
+  (set -x; gcloud compute instances add-tags "${instance_name_prefix}" --tags="${tags}")
 }
